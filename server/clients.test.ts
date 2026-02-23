@@ -2,35 +2,6 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
-vi.mock("./db", () => ({
-  createClient: vi.fn().mockResolvedValue({ id: 1 }),
-  getClientById: vi.fn().mockResolvedValue({ id: 1, firstName: "Test" }),
-  getClientsByCedula: vi.fn().mockResolvedValue({ id: 1 }),
-  getClientsByUserId: vi.fn().mockResolvedValue([]),
-  updateClient: vi.fn().mockResolvedValue({ id: 1 }),
-  createCase: vi.fn().mockResolvedValue({ id: 1 }),
-  getCaseById: vi.fn().mockResolvedValue({ id: 1 }),
-  getCasesByClientId: vi.fn().mockResolvedValue([]),
-  getCasesByLawyerId: vi.fn().mockResolvedValue([]),
-  updateCase: vi.fn().mockResolvedValue({ id: 1 }),
-  createDocument: vi.fn().mockResolvedValue({ id: 1 }),
-  getDocumentById: vi.fn().mockResolvedValue({ id: 1 }),
-  getDocumentsByCaseId: vi.fn().mockResolvedValue([]),
-  updateDocument: vi.fn().mockResolvedValue({ id: 1 }),
-  createTimeEntry: vi.fn().mockResolvedValue({ id: 1 }),
-  getTimeEntriesByCaseId: vi.fn().mockResolvedValue([]),
-  createInvoice: vi.fn().mockResolvedValue({ id: 1 }),
-  getInvoiceById: vi.fn().mockResolvedValue({ id: 1 }),
-  getInvoicesByClientId: vi.fn().mockResolvedValue([]),
-  updateInvoice: vi.fn().mockResolvedValue({ id: 1 }),
-  createAppointment: vi.fn().mockResolvedValue({ id: 1 }),
-  getAppointmentById: vi.fn().mockResolvedValue({ id: 1 }),
-  getAppointmentsByLawyerId: vi.fn().mockResolvedValue([]),
-  updateAppointment: vi.fn().mockResolvedValue({ id: 1 }),
-  createAuditLog: vi.fn().mockResolvedValue({ id: 1 }),
-  getAuditLogsByUserId: vi.fn().mockResolvedValue([]),
-}));
-
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
 function createAuthContext(userId: number = 1): { ctx: TrpcContext } {
