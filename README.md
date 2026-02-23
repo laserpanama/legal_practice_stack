@@ -367,6 +367,25 @@ For self-hosted deployment:
 4. Set up database backups
 5. Enable HTTPS
 
+## Troubleshooting
+
+### Common Installation Issues
+
+#### `ERR_PNPM_NO_PKG_MANIFEST` No package.json found
+This error occurs when you try to run `pnpm install` in a directory that does not contain the `package.json` file (e.g., `C:\WINDOWS\system32`).
+**Solution:** Ensure you have cloned the repository and moved into the project directory before running installation commands:
+```bash
+git clone https://github.com/laserpanama/legal_practice_stack.git
+cd legal_practice_stack
+pnpm install
+```
+
+#### Database Connection Failures
+If the application fails to start with "Database not available" errors:
+- Ensure your `DATABASE_URL` in `.env` is correct.
+- Verify that your MySQL/TiDB server is running and accessible.
+- For local development without a database, some features may use mock data, but core services require a valid connection.
+
 ## Contributing
 
 Contributions are welcome! Please follow these guidelines:
