@@ -40,61 +40,42 @@ export default function DigitalSignature() {
   const [message, setMessage] = useState("");
 
   const requestSignatureMutation = trpc.efirmas.requestSignature.useMutation();
+  const utils = trpc.useUtils();
 
-  // Fetch signatures on component mount
+  const { data: signaturesData, isLoading: signaturesLoading, refetch: refetchSignatures } = trpc.efirmas.listSignatures.useQuery({
+    limit: 100,
+  });
+
   useEffect(() => {
-    const fetchSignatures = async () => {
-      try {
-        // In production, this would fetch from the backend
-        // For now, using mock data
-        setSignatureRequests([
-          {
-            signatureId: "SIG-001",
-            documentName: "Contract - TechCorp S.A.",
-            signerName: "Juan Pérez",
-            signerEmail: "juan@example.com",
-            requestDate: "2026-02-05",
-            status: "pending",
-            expiryDate: "2026-02-12",
-          },
-          {
-            signatureId: "SIG-002",
-            documentName: "Power of Attorney - García Family",
-            signerName: "María García",
-            signerEmail: "maria@example.com",
-            requestDate: "2026-02-04",
-            status: "signed",
-            expiryDate: "2026-02-11",
-          },
-        ]);
+    if (signaturesData) {
+      const pending = signaturesData.signatures
+        .filter(s => s.status === "pending")
+        .map(s => ({
+          signatureId: s.signatureId,
+          documentName: s.documentName,
+          signerName: s.signerName,
+          signerEmail: "", // Mocking as it's not in the list response
+          requestDate: new Date().toISOString().split("T")[0],
+          status: "pending" as const,
+          expiryDate: (s as any).expiryDate || "",
+        }));
 
-        setActiveSignatures([
-          {
-            signatureId: "AS-001",
-            documentName: "Contract - TechCorp S.A.",
-            signerName: "Juan Pérez",
-            signerEmail: "juan@example.com",
-            signedDate: "2026-02-05",
-            certificateId: "ANC-2026-001234",
-            timestamp: "2026-02-05T14:32:00Z",
-          },
-          {
-            signatureId: "AS-002",
-            documentName: "Power of Attorney - García Family",
-            signerName: "María García",
-            signerEmail: "maria@example.com",
-            signedDate: "2026-02-04",
-            certificateId: "ANC-2026-001233",
-            timestamp: "2026-02-04T10:15:00Z",
-          },
-        ]);
-      } catch (error) {
-        console.error("Error fetching signatures:", error);
-      }
-    };
+      const signed = signaturesData.signatures
+        .filter(s => s.status === "signed")
+        .map(s => ({
+          signatureId: s.signatureId,
+          documentName: s.documentName,
+          signerName: s.signerName,
+          signerEmail: "",
+          signedDate: s.signedAt || "",
+          certificateId: s.certificateId || "",
+          timestamp: s.signedAt || "",
+        }));
 
-    fetchSignatures();
-  }, []);
+      setSignatureRequests(pending);
+      setActiveSignatures(signed);
+    }
+  }, [signaturesData]);
 
   const handleRequestSignature = async () => {
     if (!selectedDocument || !recipientEmail || !recipientName) {
@@ -143,21 +124,14 @@ export default function DigitalSignature() {
 
   const handleValidateSignature = async (signatureId: string) => {
     try {
-      // Mock validation response
-      const response = {
-        isValid: true,
+      const response = await utils.efirmas.validateSignature.fetch({
         signatureId,
-        certificateId: "ANC-2026-001234",
-        signerName: "Test Signer",
-        signerEmail: "test@example.com",
-        signedAt: new Date().toISOString(),
-        certificateStatus: "valid" as const,
-        ley81Metadata: {},
-        auditTrail: [],
-      };
+        documentHash: "abc123def456", // In production, get real hash
+      });
 
       if (response.isValid) {
         toast.success("Signature is valid and compliant");
+        refetchSignatures();
       } else {
         toast.error("Signature validation failed");
       }
@@ -169,22 +143,9 @@ export default function DigitalSignature() {
 
   const handleGetComplianceReport = async (signatureId: string) => {
     try {
-      // Mock compliance report response
-      const response = {
+      const response = await utils.efirmas.getComplianceReport.fetch({
         signatureId,
-        compliant: true,
-        framework: "Ley 81 de 2019",
-        checks: {
-          hasTimestamp: true,
-          hasCertificateId: true,
-          hasSignerInfo: true,
-          hasAuditTrail: true,
-          nonRepudiationEnabled: true,
-          integrityVerified: true,
-          certificateValid: true,
-          notRevoked: true,
-        },
-      };
+      });
 
       if (response.compliant) {
         toast.success("Signature is compliant with Ley 81 (2019)");
@@ -306,7 +267,7 @@ export default function DigitalSignature() {
               <Button 
                 onClick={handleRequestSignature} 
                 className="w-full"
-                disabled={requestSignatureMutation.isPending}
+                disabled={requestSignatureMutation.isPending || signaturesLoading}
               >
                 {requestSignatureMutation.isPending ? (
                   <>

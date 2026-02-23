@@ -10,61 +10,32 @@ import { AlertCircle, Plus, Edit2, Trash2, Shield, Users, Mail, Calendar } from 
 import { toast } from "sonner";
 import { LegalDashboardLayout } from "@/components/LegalDashboardLayout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { trpc } from "@/lib/trpc";
+import { useEffect } from "react";
 
 interface User {
   id: number;
-  name: string;
-  email: string;
-  role: "admin" | "lawyer" | "user";
-  status: "active" | "inactive" | "suspended";
-  lastLogin: string;
-  createdAt: string;
-  loginMethod: string;
+  name: string | null;
+  email: string | null;
+  role: "admin" | "user";
+  status?: "active" | "inactive" | "suspended";
+  lastLogin?: string;
+  createdAt: Date;
+  loginMethod: string | null;
 }
 
 export default function AdminUsers() {
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: 1,
-      name: "Pío López",
-      email: "pio@legalstack.pa",
-      role: "admin",
-      status: "active",
-      lastLogin: "2025-01-13",
-      createdAt: "2024-12-01",
-      loginMethod: "manus",
-    },
-    {
-      id: 2,
-      name: "María García",
-      email: "maria@legalstack.pa",
-      role: "lawyer",
-      status: "active",
-      lastLogin: "2025-01-13",
-      createdAt: "2024-12-15",
-      loginMethod: "manus",
-    },
-    {
-      id: 3,
-      name: "Carlos Rodríguez",
-      email: "carlos@legalstack.pa",
-      role: "lawyer",
-      status: "active",
-      lastLogin: "2025-01-12",
-      createdAt: "2024-12-20",
-      loginMethod: "manus",
-    },
-    {
-      id: 4,
-      name: "Ana López",
-      email: "ana@legalstack.pa",
-      role: "user",
-      status: "inactive",
-      lastLogin: "2025-01-05",
-      createdAt: "2025-01-01",
-      loginMethod: "manus",
-    },
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
+
+  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = trpc.users.list.useQuery();
+  const updateUserMutation = trpc.users.update.useMutation();
+  const deleteUserMutation = trpc.users.delete.useMutation();
+
+  useEffect(() => {
+    if (usersData) {
+      setUsers(usersData as any);
+    }
+  }, [usersData]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
@@ -75,73 +46,52 @@ export default function AdminUsers() {
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
-    role: "lawyer" as const,
+    role: "user" as const,
   });
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === "all" || user.role === filterRole;
-    const matchesStatus = filterStatus === "all" || user.status === filterStatus;
+    const matchesStatus = filterStatus === "all" || (user.status || "active") === filterStatus;
     return matchesSearch && matchesRole && matchesStatus;
   });
 
   const handleAddUser = () => {
-    if (!newUser.name || !newUser.email) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    const user: User = {
-      id: Math.max(...users.map((u) => u.id), 0) + 1,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      status: "active",
-      lastLogin: new Date().toISOString().split("T")[0],
-      createdAt: new Date().toISOString().split("T")[0],
-      loginMethod: "manus",
-    };
-
-    setUsers([...users, user]);
-    setNewUser({ name: "", email: "", role: "lawyer" });
+    toast.info("User creation is handled via OAuth login");
     setIsAddDialogOpen(false);
-    toast.success("User added successfully");
   };
 
-  const handleEditUser = () => {
+  const handleEditUser = async () => {
     if (!selectedUser) return;
 
-    setUsers(users.map((u) => (u.id === selectedUser.id ? selectedUser : u)));
-    setIsEditDialogOpen(false);
-    setSelectedUser(null);
-    toast.success("User updated successfully");
+    try {
+      await updateUserMutation.mutateAsync({
+        id: selectedUser.id,
+        role: selectedUser.role,
+      });
+      refetchUsers();
+      setIsEditDialogOpen(false);
+      setSelectedUser(null);
+      toast.success("User updated successfully");
+    } catch (error) {
+      toast.error("Failed to update user");
+    }
   };
 
-  const handleDeleteUser = (userId: number) => {
-    if (userId === 1) {
-      toast.error("Cannot delete the primary admin user");
-      return;
+  const handleDeleteUser = async (userId: number) => {
+    try {
+      await deleteUserMutation.mutateAsync({ id: userId });
+      refetchUsers();
+      toast.success("User deleted successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete user");
     }
-
-    setUsers(users.filter((u) => u.id !== userId));
-    toast.success("User deleted successfully");
   };
 
   const handleToggleStatus = (userId: number) => {
-    setUsers(
-      users.map((u) => {
-        if (u.id === userId) {
-          return {
-            ...u,
-            status: u.status === "active" ? "inactive" : "active",
-          };
-        }
-        return u;
-      })
-    );
-    toast.success("User status updated");
+    toast.info("Status management is not yet implemented in the backend");
   };
 
   const getRoleColor = (role: string) => {
@@ -170,7 +120,7 @@ export default function AdminUsers() {
 
   const activeUsers = users.filter((u) => u.status === "active").length;
   const adminUsers = users.filter((u) => u.role === "admin").length;
-  const lawyerUsers = users.filter((u) => u.role === "lawyer").length;
+  const lawyerUsers = 0;
 
   return (
     <LegalDashboardLayout>
@@ -222,7 +172,6 @@ export default function AdminUsers() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="admin">Administrator</SelectItem>
-                        <SelectItem value="lawyer">Lawyer</SelectItem>
                         <SelectItem value="user">User</SelectItem>
                       </SelectContent>
                     </Select>
@@ -302,7 +251,6 @@ export default function AdminUsers() {
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
                       <SelectItem value="admin">Administrator</SelectItem>
-                      <SelectItem value="lawyer">Lawyer</SelectItem>
                       <SelectItem value="user">User</SelectItem>
                     </SelectContent>
                   </Select>
@@ -343,13 +291,13 @@ export default function AdminUsers() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
-                            {user.name.charAt(0)}
+                            {(user.name || "?").charAt(0)}
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">{user.name}</p>
+                            <p className="font-medium text-foreground">{user.name || "Unknown"}</p>
                             <p className="text-sm text-muted-foreground flex items-center gap-1">
                               <Mail className="w-3 h-3" />
-                              {user.email}
+                              {user.email || "No email"}
                             </p>
                           </div>
                         </div>
@@ -359,15 +307,15 @@ export default function AdminUsers() {
                         <Badge className={getRoleColor(user.role)}>
                           {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </Badge>
-                        <Badge className={getStatusColor(user.status)}>
-                          {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                        <Badge className={getStatusColor(user.status || "active")}>
+                          {(user.status || "active").charAt(0).toUpperCase() + (user.status || "active").slice(1)}
                         </Badge>
                       </div>
 
                       <div className="text-right mr-4">
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          Last login: {user.lastLogin}
+                          Joined: {new Date(user.createdAt).toLocaleDateString()}
                         </p>
                       </div>
 
@@ -395,7 +343,7 @@ export default function AdminUsers() {
                                   <Label htmlFor="edit-name">Full Name</Label>
                                   <Input
                                     id="edit-name"
-                                    value={selectedUser.name}
+                                    value={selectedUser.name || ""}
                                     onChange={(e) => setSelectedUser({ ...selectedUser, name: e.target.value })}
                                   />
                                 </div>
@@ -404,7 +352,7 @@ export default function AdminUsers() {
                                   <Input
                                     id="edit-email"
                                     type="email"
-                                    value={selectedUser.email}
+                                    value={selectedUser.email || ""}
                                     onChange={(e) => setSelectedUser({ ...selectedUser, email: e.target.value })}
                                   />
                                 </div>
@@ -416,7 +364,6 @@ export default function AdminUsers() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="admin">Administrator</SelectItem>
-                                      <SelectItem value="lawyer">Lawyer</SelectItem>
                                       <SelectItem value="user">User</SelectItem>
                                     </SelectContent>
                                   </Select>
