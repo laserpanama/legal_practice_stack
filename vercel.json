@@ -1,0 +1,3 @@
+git add vercel.json
+git commit -m "Fix SPA routing for Vercel deployment"
+git push origin main
