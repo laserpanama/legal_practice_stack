@@ -12,6 +12,7 @@ import {
   generateComplianceReport,
   exportAuditTrailToCSV,
 } from "./signature-audit-service";
+import { getAuditLogsByUserId } from "./db";
 
 export const auditRouter = router({
   /**
@@ -250,4 +251,16 @@ export const auditRouter = router({
         throw new Error("Failed to fetch signature request details");
       }
     }),
+
+  /**
+   * Get audit logs for the current user
+   */
+  listByUser: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      return await getAuditLogsByUserId(ctx.user.id);
+    } catch (error) {
+      console.error("Error fetching user audit logs:", error);
+      throw new Error("Failed to fetch user audit logs");
+    }
+  }),
 });

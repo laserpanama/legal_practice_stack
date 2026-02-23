@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
-import { getDb } from "./db";
 import { notifyOwner } from "./_core/notification";
 
 /**
@@ -22,11 +21,6 @@ export const lexiaRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
       try {
         // In a real implementation, this would insert into a consultations table
         // For now, we return a mock response
@@ -62,11 +56,6 @@ export const lexiaRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
       try {
         const messageId = Date.now().toString();
 
@@ -98,11 +87,6 @@ export const lexiaRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
       try {
         // Mock response - in production would fetch from database
         return {
@@ -144,11 +128,6 @@ export const lexiaRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
       try {
         const noteId = Date.now().toString();
 
@@ -183,11 +162,6 @@ export const lexiaRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
       try {
         // Mock analysis response
         const analysis = {
@@ -221,11 +195,6 @@ export const lexiaRouter = router({
    * Get consultation statistics
    */
   getConsultationStats: protectedProcedure.query(async ({ ctx }) => {
-    const db = await getDb();
-    if (!db) {
-      throw new Error("Database not available");
-    }
-
     try {
       // Mock statistics
       return {
@@ -260,11 +229,6 @@ export const lexiaRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
       try {
         // Mock research response
         const research = {

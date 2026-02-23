@@ -246,10 +246,34 @@ The application uses tRPC for type-safe API communication. All procedures are de
 - `appointments.update` - Update appointment
 - `appointments.delete` - Cancel appointment
 
+#### LexIA AI Procedures
+- `lexia.createSession` - Create AI consultation session
+- `lexia.saveMessage` - Save consultation message
+- `lexia.getSessionHistory` - Get session history
+- `lexia.createCaseNotes` - Generate AI case notes
+- `lexia.analyzeDocument` - AI document analysis
+- `lexia.getConsultationStats` - Get AI usage stats
+
+#### eFirmas Signature Procedures
+- `efirmas.requestSignature` - Request digital signature
+- `efirmas.validateSignature` - Validate signature authenticity
+- `efirmas.getSignatureDetails` - Get signature metadata
+- `efirmas.listSignatures` - List signature requests
+- `efirmas.getComplianceReport` - Ley 81 compliance report
+
+#### Alexa Legal Knowledge Procedures
+- `alexa.searchLegalCodes` - Search Panamanian legal codes
+- `alexa.getLegalCode` - Get full text of legal codes
+- `alexa.searchTemplates` - Search document templates
+- `alexa.generateDocument` - AI-assisted document generation
+- `alexa.getLegalAdvice` - AI legal advice with citations
+
 #### Audit & Compliance
-- `audit.log` - Log audit event
-- `audit.listByUser` - Get user audit logs
-- `privacy.recordConsent` - Record privacy consent
+- `audit.getSignatureRequests` - List signature requests (Admin)
+- `audit.getAuditTrail` - Detailed signature audit trail
+- `audit.getComplianceStatistics` - Compliance metrics
+- `audit.generateComplianceReport` - Generate PDF/CSV reports
+- `audit.listByUser` - Get current user audit logs
 
 ## Ley 81 (2019) Compliance
 

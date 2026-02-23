@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { lexiaRouter } from "./lexia-router";
 import { efirmasRouter } from "./efirmas-router";
 import { auditRouter } from "./audit-router";
+import { alexaRouter } from "./alexa-router";
 import { z } from "zod";
 import {
   createClient,
@@ -41,6 +42,7 @@ export const appRouter = router({
   lexia: lexiaRouter,
   efirmas: efirmasRouter,
   audit: auditRouter,
+  alexa: alexaRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
