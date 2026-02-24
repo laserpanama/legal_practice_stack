@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, CheckCircle, Clock, AlertCircle, FileText, Send } from "lucide-react";
 import { toast } from "sonner";
 import { LegalDashboardLayout } from "@/components/LegalDashboardLayout";
+import { trpc } from "@/lib/trpc";
+import { useEffect } from "react";
 
 interface CaseWorkflowItem {
   id: number;
@@ -49,75 +51,55 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 };
 
 export default function CaseWorkflow() {
-  const [cases, setCases] = useState<CaseWorkflowItem[]>([
-    {
-      id: 1,
-      caseId: 1,
-      caseName: "Corporate Restructuring - TechCorp S.A.",
-      client: "Juan Pérez",
-      currentStatus: "active",
-      daysInStatus: 15,
-      lastTransition: "2025-01-10",
-    },
-    {
-      id: 2,
-      caseId: 2,
-      caseName: "Contract Dispute Resolution",
-      client: "María García",
-      currentStatus: "review",
-      daysInStatus: 8,
-      lastTransition: "2025-01-05",
-    },
-    {
-      id: 3,
-      caseId: 3,
-      caseName: "Intellectual Property Matter",
-      client: "Carlos López",
-      currentStatus: "intake",
-      daysInStatus: 3,
-      lastTransition: "2025-01-10",
-    },
-    {
-      id: 4,
-      caseId: 4,
-      caseName: "Employment Dispute",
-      client: "Ana Martínez",
-      currentStatus: "pending_signature",
-      daysInStatus: 2,
-      lastTransition: "2025-01-11",
-    },
-  ]);
+  const [cases, setCases] = useState<CaseWorkflowItem[]>([]);
+
+  const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = trpc.workflow.getCaseWorkflowStats.useQuery();
+  const { data: casesData, isLoading: casesLoading, refetch: refetchCases } = trpc.cases.listByLawyer.useQuery();
+  const transitionMutation = trpc.workflow.transitionCaseStatus.useMutation();
+
+  useEffect(() => {
+    if (casesData) {
+      setCases(casesData.map(c => ({
+        id: c.id,
+        caseId: c.id,
+        caseName: c.title,
+        client: `Client ID: ${c.clientId}`, // Placeholder since client name is in another table
+        currentStatus: (c.status as any) || "intake",
+        daysInStatus: Math.floor((Date.now() - new Date(c.updatedAt).getTime()) / 86400000),
+        lastTransition: new Date(c.updatedAt).toISOString().split("T")[0]
+      })));
+    }
+  }, [casesData]);
 
   const [selectedCase, setSelectedCase] = useState<CaseWorkflowItem | null>(null);
   const [transitionReason, setTransitionReason] = useState("");
   const [isTransitionDialogOpen, setIsTransitionDialogOpen] = useState(false);
   const [selectedNextStatus, setSelectedNextStatus] = useState("");
 
-  const handleTransitionCase = () => {
+  const handleTransitionCase = async () => {
     if (!selectedCase || !selectedNextStatus || !transitionReason) {
       toast.error("Por favor complete todos los campos");
       return;
     }
 
-    // Update case status
-    setCases(
-      cases.map((c) =>
-        c.id === selectedCase.id
-          ? {
-              ...c,
-              currentStatus: selectedNextStatus as any,
-              daysInStatus: 0,
-              lastTransition: new Date().toISOString().split("T")[0],
-            }
-          : c
-      )
-    );
+    try {
+      await transitionMutation.mutateAsync({
+        caseId: selectedCase.caseId,
+        newStatus: selectedNextStatus as any,
+        reason: transitionReason,
+      });
 
-    toast.success(`Caso "${selectedCase.caseName}" transicionado a ${selectedNextStatus}`);
-    setIsTransitionDialogOpen(false);
-    setTransitionReason("");
-    setSelectedNextStatus("");
-    setSelectedCase(null);
+      toast.success(`Caso "${selectedCase.caseName}" transicionado a ${selectedNextStatus}`);
+      refetchCases();
+      refetchStats();
+
+      setIsTransitionDialogOpen(false);
+      setTransitionReason("");
+      setSelectedNextStatus("");
+      setSelectedCase(null);
+    } catch (error) {
+      toast.error("Error al transicionar el caso");
+    }
   };
 
   const getValidNextStatuses = (currentStatus: string): string[] => {
@@ -136,13 +118,13 @@ export default function CaseWorkflow() {
     return labels[status] || status;
   };
 
-  const casesByStatus = {
-    intake: cases.filter((c) => c.currentStatus === "intake").length,
-    review: cases.filter((c) => c.currentStatus === "review").length,
-    active: cases.filter((c) => c.currentStatus === "active").length,
-    pending_signature: cases.filter((c) => c.currentStatus === "pending_signature").length,
-    closed: cases.filter((c) => c.currentStatus === "closed").length,
-    archived: cases.filter((c) => c.currentStatus === "archived").length,
+  const casesByStatus = statsData?.byStatus || {
+    intake: 0,
+    review: 0,
+    active: 0,
+    pending_signature: 0,
+    closed: 0,
+    archived: 0,
   };
 
   const averageDaysInStatus = {

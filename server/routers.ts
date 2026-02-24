@@ -6,6 +6,8 @@ import { lexiaRouter } from "./lexia-router";
 import { efirmasRouter } from "./efirmas-router";
 import { auditRouter } from "./audit-router";
 import { alexaRouter } from "./alexa-router";
+import { workflowRouter } from "./workflow-router";
+import { analyticsRouter } from "./analytics-router";
 import { z } from "zod";
 import {
   createClient,
@@ -46,6 +48,8 @@ export const appRouter = router({
   efirmas: efirmasRouter,
   audit: auditRouter,
   alexa: alexaRouter,
+  workflow: workflowRouter,
+  analytics: analyticsRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -195,7 +199,7 @@ export const appRouter = router({
           id: z.number(),
           title: z.string().optional(),
           description: z.string().optional(),
-          status: z.enum(["open", "pending", "closed", "archived"]).optional(),
+          status: z.enum(["intake", "review", "active", "pending_signature", "closed", "archived"]).optional(),
           priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
           budget: z.number().optional(),
         })
