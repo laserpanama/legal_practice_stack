@@ -4,9 +4,10 @@
  * Compliant with Panama's Ley 81 (2019) for audit logging
  */
 
-import { getDb } from "./db";
-import { eq } from "drizzle-orm";
+import { getDb, createAuditLog } from "./db";
+import { eq, sql, count } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
+import { cases, type Case } from "../drizzle/schema";
 
 export type CaseStatus = "intake" | "review" | "active" | "pending_signature" | "closed" | "archived";
 
@@ -62,15 +63,14 @@ export async function transitionCaseStatus(
 
   try {
     // Get current case
-    // Note: Query implementation depends on Drizzle ORM setup
-    // This is a placeholder for the actual database query
-    const currentCase = null; // Would be fetched from database
+    const results = await db.select().from(cases).where(eq(cases.id, caseId)).limit(1);
+    const currentCase = results[0];
 
     if (!currentCase) {
       return { success: false, message: "Case not found" };
     }
 
-    const currentStatus: CaseStatus = (currentCase as any).status || "intake";
+    const currentStatus = (currentCase.status as CaseStatus) || "intake";
 
     // Validate transition
     if (!isValidTransition(currentStatus, newStatus)) {
@@ -81,9 +81,11 @@ export async function transitionCaseStatus(
     }
 
     // Update case status
-    // Note: Update implementation depends on Drizzle ORM setup
-    // This is a placeholder for the actual database update
-    // await db.update(cases).set({ status: newStatus, updatedAt: new Date() }).where(eq(cases.id, caseId));
+    await db.update(cases).set({
+      status: newStatus as any,
+      updatedAt: new Date(),
+      closeDate: newStatus === "closed" ? new Date() : currentCase.closeDate
+    }).where(eq(cases.id, caseId));
 
     const transition: CaseWorkflowTransition = {
       fromStatus: currentStatus,
@@ -134,12 +136,15 @@ function shouldNotifyClient(fromStatus: CaseStatus, toStatus: CaseStatus): boole
  */
 async function logWorkflowTransition(caseId: number, transition: CaseWorkflowTransition): Promise<void> {
   try {
-    // This would integrate with the auditLogs table
-    // For now, we'll just log to console
+    await createAuditLog({
+      entityType: "case",
+      entityId: caseId,
+      action: "case_status_transition",
+      details: JSON.stringify(transition),
+      createdAt: transition.timestamp,
+    });
+
     console.log(`[Audit] Case ${caseId} transitioned: ${transition.fromStatus} → ${transition.toStatus}`);
-    console.log(`[Audit] Reason: ${transition.reason}`);
-    console.log(`[Audit] Performed by: ${transition.performedBy}`);
-    console.log(`[Audit] Timestamp: ${transition.timestamp.toISOString()}`);
   } catch (error) {
     console.error("[Audit] Failed to log workflow transition:", error);
   }
@@ -183,9 +188,17 @@ async function sendWorkflowNotifications(
  * Get workflow history for a case
  */
 export async function getCaseWorkflowHistory(caseId: number): Promise<CaseWorkflowTransition[]> {
-  // This would query the auditLogs table
-  // For now, return empty array
-  return [];
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    // In a real app, we'd query auditLogs.
+    // This is a simplified version returning empty for now or searching auditLogs if it was robustly typed.
+    return [];
+  } catch (error) {
+    console.error("[Case Workflow] Error getting history:", error);
+    return [];
+  }
 }
 
 /**
@@ -233,41 +246,26 @@ export async function getCaseWorkflowStats(): Promise<{
     return {
       totalCases: 0,
       byStatus: {
-        intake: 0,
-        review: 0,
-        active: 0,
-        pending_signature: 0,
-        closed: 0,
-        archived: 0,
+        intake: 0, review: 0, active: 0, pending_signature: 0, closed: 0, archived: 0,
       },
       averageTimeInStatus: {
-        intake: 0,
-        review: 0,
-        active: 0,
-        pending_signature: 0,
-        closed: 0,
-        archived: 0,
+        intake: 0, review: 0, active: 0, pending_signature: 0, closed: 0, archived: 0,
       },
     };
   }
 
   try {
-    // Get all cases
-    // Note: Query implementation depends on Drizzle ORM setup
-    const allCases: any[] = []; // Would be fetched from database
+    const allCases = await db.select().from(cases);
 
     const byStatus: Record<CaseStatus, number> = {
-      intake: 0,
-      review: 0,
-      active: 0,
-      pending_signature: 0,
-      closed: 0,
-      archived: 0,
+      intake: 0, review: 0, active: 0, pending_signature: 0, closed: 0, archived: 0,
     };
 
     for (const caseData of allCases) {
       const status = (caseData.status as CaseStatus) || "intake";
-      byStatus[status]++;
+      if (byStatus[status] !== undefined) {
+        byStatus[status]++;
+      }
     }
 
     return {

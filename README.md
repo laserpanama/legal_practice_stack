@@ -246,10 +246,34 @@ The application uses tRPC for type-safe API communication. All procedures are de
 - `appointments.update` - Update appointment
 - `appointments.delete` - Cancel appointment
 
+#### LexIA AI Procedures
+- `lexia.createSession` - Create AI consultation session
+- `lexia.saveMessage` - Save consultation message
+- `lexia.getSessionHistory` - Get session history
+- `lexia.createCaseNotes` - Generate AI case notes
+- `lexia.analyzeDocument` - AI document analysis
+- `lexia.getConsultationStats` - Get AI usage stats
+
+#### eFirmas Signature Procedures
+- `efirmas.requestSignature` - Request digital signature
+- `efirmas.validateSignature` - Validate signature authenticity
+- `efirmas.getSignatureDetails` - Get signature metadata
+- `efirmas.listSignatures` - List signature requests
+- `efirmas.getComplianceReport` - Ley 81 compliance report
+
+#### Alexa Legal Knowledge Procedures
+- `alexa.searchLegalCodes` - Search Panamanian legal codes
+- `alexa.getLegalCode` - Get full text of legal codes
+- `alexa.searchTemplates` - Search document templates
+- `alexa.generateDocument` - AI-assisted document generation
+- `alexa.getLegalAdvice` - AI legal advice with citations
+
 #### Audit & Compliance
-- `audit.log` - Log audit event
-- `audit.listByUser` - Get user audit logs
-- `privacy.recordConsent` - Record privacy consent
+- `audit.getSignatureRequests` - List signature requests (Admin)
+- `audit.getAuditTrail` - Detailed signature audit trail
+- `audit.getComplianceStatistics` - Compliance metrics
+- `audit.generateComplianceReport` - Generate PDF/CSV reports
+- `audit.listByUser` - Get current user audit logs
 
 ## Ley 81 (2019) Compliance
 
@@ -342,6 +366,25 @@ For self-hosted deployment:
 3. Configure environment variables
 4. Set up database backups
 5. Enable HTTPS
+
+## Troubleshooting
+
+### Common Installation Issues
+
+#### `ERR_PNPM_NO_PKG_MANIFEST` No package.json found
+This error occurs when you try to run `pnpm install` in a directory that does not contain the `package.json` file (e.g., `C:\WINDOWS\system32`).
+**Solution:** Ensure you have cloned the repository and moved into the project directory before running installation commands:
+```bash
+git clone https://github.com/laserpanama/legal_practice_stack.git
+cd legal_practice_stack
+pnpm install
+```
+
+#### Database Connection Failures
+If the application fails to start with "Database not available" errors:
+- Ensure your `DATABASE_URL` in `.env` is correct.
+- Verify that your MySQL/TiDB server is running and accessible.
+- For local development without a database, some features may use mock data, but core services require a valid connection.
 
 ## Contributing
 

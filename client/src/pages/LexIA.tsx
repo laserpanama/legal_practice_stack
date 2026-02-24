@@ -57,6 +57,8 @@ export default function LexIA() {
   ]);
 
   const [activeSession, setActiveSession] = useState<ConsultationSession | null>(sessions[0] || null);
+
+  const getAdviceMutation = trpc.alexa.getLegalAdvice.useMutation();
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,13 +128,15 @@ export default function LexIA() {
         timestamp: new Date(),
       };
 
-      // Simulate AI response (in production, this would call the backend LLM)
+      // Call backend LLM
+      const response = await getAdviceMutation.mutateAsync({
+        query,
+      });
+
       const aiResponse: ConsultationMessage = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
-        content: `Basándome en la legislación panameña y específicamente en la Ley 93 de 1973 (Código Laboral), puedo informarle que: ${query}. 
-
-Para obtener una respuesta más específica, le recomiendo que proporcione más detalles sobre su situación particular. Recuerde que esta es una consulta informativa y no constituye asesoría legal vinculante. Para asuntos legales importantes, consulte con un abogado certificado.`,
+        content: response.advice,
         timestamp: new Date(),
       };
 
@@ -151,7 +155,8 @@ Para obtener una respuesta más específica, le recomiendo que proporcione más 
 
       setCurrentQuery("");
     } catch (error) {
-      toast.error("Error al procesar la consulta");
+      console.error("LexIA Error:", error);
+      toast.error("Error al procesar la consulta con LexIA");
     } finally {
       setIsLoading(false);
     }

@@ -2,58 +2,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LegalDashboardLayout } from "@/components/LegalDashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, Users, Briefcase, DollarSign, Clock } from "lucide-react";
-
-// Mock data for charts
-const caseMetricsData = [
-  { month: "Jan", active: 8, closed: 2, pending: 3 },
-  { month: "Feb", active: 10, closed: 3, pending: 4 },
-  { month: "Mar", active: 12, closed: 4, pending: 5 },
-  { month: "Apr", active: 11, closed: 5, pending: 6 },
-  { month: "May", active: 13, closed: 6, pending: 4 },
-  { month: "Jun", active: 12, closed: 7, pending: 3 },
-];
-
-const billingData = [
-  { month: "Jan", invoiced: 45000, paid: 42000, pending: 3000 },
-  { month: "Feb", invoiced: 52000, paid: 50000, pending: 2000 },
-  { month: "Mar", invoiced: 48000, paid: 48000, pending: 0 },
-  { month: "Apr", invoiced: 61000, paid: 58000, pending: 3000 },
-  { month: "May", invoiced: 55000, paid: 52000, pending: 3000 },
-  { month: "Jun", invoiced: 67000, paid: 65000, pending: 2000 },
-];
-
-const timeTrackingData = [
-  { month: "Jan", billable: 140, nonBillable: 20 },
-  { month: "Feb", billable: 155, nonBillable: 25 },
-  { month: "Mar", billable: 150, nonBillable: 30 },
-  { month: "Apr", billable: 165, nonBillable: 20 },
-  { month: "May", billable: 158, nonBillable: 22 },
-  { month: "Jun", billable: 170, nonBillable: 18 },
-];
-
-const caseTypeDistribution = [
-  { name: "Corporate Law", value: 35, color: "#3b82f6" },
-  { name: "Family Law", value: 25, color: "#8b5cf6" },
-  { name: "Criminal Law", value: 20, color: "#ef4444" },
-  { name: "Real Estate", value: 15, color: "#10b981" },
-  { name: "Other", value: 5, color: "#6b7280" },
-];
-
-const lawyerProductivity: Array<{ lawyer: string; cases: number; hours: number; billable: number }> = [
-  { lawyer: "Juan Pérez", cases: 12, hours: 156, billable: 145 },
-  { lawyer: "María García", cases: 10, hours: 142, billable: 135 },
-  { lawyer: "Carlos López", cases: 8, hours: 128, billable: 120 },
-  { lawyer: "Ana Rodríguez", cases: 9, hours: 135, billable: 128 },
-];
+import { TrendingUp, Users, Briefcase, DollarSign, Clock, Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 export default function Analytics() {
-  const totalCases = 12;
-  const activeCases = 12;
-  const totalClients = 48;
-  const totalBilled = 328000; // in cents, so 3,280 Balboas
-  const totalHours = 760;
-  const billableRate = 95.5; // percentage
+  const { data: metrics, isLoading: metricsLoading } = trpc.analytics.getPracticeMetrics.useQuery();
+  const { data: trends, isLoading: trendsLoading } = trpc.analytics.getMonthlyTrends.useQuery();
+  const { data: distribution, isLoading: distLoading } = trpc.analytics.getDistributionData.useQuery();
+
+  if (metricsLoading || trendsLoading || distLoading) {
+    return (
+      <LegalDashboardLayout>
+        <div className="flex h-[80vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="ml-2">Loading analytics...</span>
+        </div>
+      </LegalDashboardLayout>
+    );
+  }
+
+  const caseMetricsData = trends || [];
+  const billingData = trends || [];
+  const timeTrackingData = trends?.map(t => ({
+    month: t.month,
+    billable: Math.round((t as any).invoiced / 300), // Derived for visual demo
+    nonBillable: 20
+  })) || [];
+
+  const caseTypeDistribution = distribution?.caseTypes || [];
+  const lawyerProductivity = distribution?.lawyerProductivity || [];
+
+  const totalCases = metrics?.totalCases || 0;
+  const activeCases = metrics?.activeCases || 0;
+  const totalClients = metrics?.totalClients || 0;
+  const totalBilled = metrics?.totalRevenue || 0;
+  const billableRate = metrics?.billableRate || 0;
 
   return (
     <LegalDashboardLayout>

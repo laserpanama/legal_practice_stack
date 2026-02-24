@@ -1,10 +1,13 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { lexiaRouter } from "./lexia-router";
 import { efirmasRouter } from "./efirmas-router";
 import { auditRouter } from "./audit-router";
+import { alexaRouter } from "./alexa-router";
+import { workflowRouter } from "./workflow-router";
+import { analyticsRouter } from "./analytics-router";
 import { z } from "zod";
 import {
   createClient,
@@ -33,6 +36,9 @@ import {
   updateAppointment,
   createAuditLog,
   getAuditLogsByUserId,
+  getAllUsers,
+  updateUser,
+  deleteUser,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 
@@ -41,6 +47,9 @@ export const appRouter = router({
   lexia: lexiaRouter,
   efirmas: efirmasRouter,
   audit: auditRouter,
+  alexa: alexaRouter,
+  workflow: workflowRouter,
+  analytics: analyticsRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -190,7 +199,7 @@ export const appRouter = router({
           id: z.number(),
           title: z.string().optional(),
           description: z.string().optional(),
-          status: z.enum(["open", "pending", "closed", "archived"]).optional(),
+          status: z.enum(["intake", "review", "active", "pending_signature", "closed", "archived"]).optional(),
           priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
           budget: z.number().optional(),
         })
@@ -397,6 +406,56 @@ export const appRouter = router({
         });
 
         return await updateInvoice(input.id, updateData);
+      }),
+  }),
+
+  // ============ USER MANAGEMENT (ADMIN ONLY) ============
+  users: router({
+    list: adminProcedure.query(async () => {
+      return await getAllUsers();
+    }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          role: z.enum(["user", "admin"]).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...updateData } = input;
+
+        await createAuditLog({
+          userId: ctx.user.id,
+          action: "user_updated",
+          entityType: "user",
+          entityId: id,
+          details: JSON.stringify(updateData),
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string | undefined,
+        });
+
+        return await updateUser(id, updateData);
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.id === ctx.user.id) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "You cannot delete your own account",
+          });
+        }
+
+        await createAuditLog({
+          userId: ctx.user.id,
+          action: "user_deleted",
+          entityType: "user",
+          entityId: input.id,
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string | undefined,
+        });
+
+        return await deleteUser(input.id);
       }),
   }),
 
