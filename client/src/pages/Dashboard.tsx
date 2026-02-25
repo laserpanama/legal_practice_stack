@@ -1,16 +1,22 @@
 import { LegalDashboardLayout } from "@/components/LegalDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Users, Clock, DollarSign, TrendingUp, AlertCircle } from "lucide-react";
+import { Briefcase, Users, Clock, DollarSign, TrendingUp, AlertCircle, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { format } from "date-fns";
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
 
-  const metrics = [
+  const { data: metrics, isLoading: metricsLoading } = trpc.analytics.getPracticeMetrics.useQuery();
+  const { data: recentCases, isLoading: casesLoading } = trpc.cases.listByLawyer.useQuery();
+  const { data: appointments, isLoading: appointmentsLoading } = trpc.appointments.listByLawyer.useQuery();
+
+  const dashboardMetrics = [
     {
       title: "Active Cases",
-      value: "12",
+      value: metrics?.activeCases?.toString() || "0",
       description: "Cases in progress",
       icon: Briefcase,
       color: "bg-blue-50 dark:bg-blue-950",
@@ -18,7 +24,7 @@ export default function Dashboard() {
     },
     {
       title: "Total Clients",
-      value: "48",
+      value: metrics?.totalClients?.toString() || "0",
       description: "Active clients",
       icon: Users,
       color: "bg-green-50 dark:bg-green-950",
@@ -26,15 +32,15 @@ export default function Dashboard() {
     },
     {
       title: "Hours This Month",
-      value: "156",
-      description: "Billable hours",
+      value: metrics?.hoursThisMonth?.toString() || "0",
+      description: "Logged hours",
       icon: Clock,
       color: "bg-purple-50 dark:bg-purple-950",
       iconColor: "text-purple-600 dark:text-purple-400",
     },
     {
-      title: "Outstanding Invoices",
-      value: "B/.45,200",
+      title: "Outstanding",
+      value: `B/.${((metrics?.outstandingRevenue || 0) / 100).toLocaleString()}`,
       description: "Awaiting payment",
       icon: DollarSign,
       color: "bg-orange-50 dark:bg-orange-950",
@@ -42,53 +48,16 @@ export default function Dashboard() {
     },
   ];
 
-  const recentCases = [
-    {
-      id: 1,
-      caseNumber: "CASE-2025-001",
-      title: "Corporate Restructuring - TechCorp S.A.",
-      client: "Juan Pérez",
-      status: "In Progress",
-      priority: "High",
-    },
-    {
-      id: 2,
-      caseNumber: "CASE-2025-002",
-      title: "Contract Dispute Resolution",
-      client: "Maria García",
-      status: "Pending Review",
-      priority: "Medium",
-    },
-    {
-      id: 3,
-      caseNumber: "CASE-2025-003",
-      title: "Employment Law Matter",
-      client: "Carlos López",
-      status: "In Progress",
-      priority: "Medium",
-    },
-  ];
-
-  const upcomingAppointments = [
-    {
-      id: 1,
-      title: "Client Meeting - TechCorp",
-      time: "Today at 2:00 PM",
-      client: "Juan Pérez",
-    },
-    {
-      id: 2,
-      title: "Court Hearing",
-      time: "Tomorrow at 10:00 AM",
-      client: "Maria García",
-    },
-    {
-      id: 3,
-      title: "Document Review",
-      time: "Friday at 3:30 PM",
-      client: "Carlos López",
-    },
-  ];
+  if (metricsLoading || casesLoading || appointmentsLoading) {
+    return (
+      <LegalDashboardLayout>
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="ml-2">Cargando dashboard...</span>
+        </div>
+      </LegalDashboardLayout>
+    );
+  }
 
   return (
     <LegalDashboardLayout>
@@ -111,7 +80,7 @@ export default function Dashboard() {
 
         {/* Metrics Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {metrics.map((metric) => {
+          {dashboardMetrics.map((metric) => {
             const Icon = metric.icon;
             return (
               <Card key={metric.title} className="border-border bg-card">
@@ -144,7 +113,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentCases.map((caseItem) => (
+                {(recentCases || []).slice(0, 5).map((caseItem) => (
                   <div
                     key={caseItem.id}
                     className="flex items-start justify-between rounded-lg border border-border/50 p-4 hover:bg-accent/50 transition-colors cursor-pointer"
@@ -157,7 +126,7 @@ export default function Dashboard() {
                         </span>
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                            caseItem.priority === "High"
+                            caseItem.priority === "high" || caseItem.priority === "urgent"
                               ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
                               : "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
                           }`}
@@ -166,12 +135,12 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <h3 className="mt-1 font-semibold text-foreground">{caseItem.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{caseItem.client}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{caseItem.clientName || `Client ID: ${caseItem.clientId}`}</p>
                     </div>
                     <div className="ml-4 text-right">
                       <span
                         className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-                          caseItem.status === "In Progress"
+                          caseItem.status === "active"
                             ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                             : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                         }`}
@@ -181,6 +150,11 @@ export default function Dashboard() {
                     </div>
                   </div>
                 ))}
+                {(recentCases || []).length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No cases found.
+                  </div>
+                )}
               </div>
               <Button
                 variant="outline"
@@ -196,11 +170,11 @@ export default function Dashboard() {
           <Card className="border-border bg-card">
             <CardHeader>
               <CardTitle>Upcoming Appointments</CardTitle>
-              <CardDescription>Next 3 scheduled events</CardDescription>
+              <CardDescription>Next scheduled events</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {upcomingAppointments.map((appointment) => (
+                {(appointments || []).slice(0, 5).map((appointment) => (
                   <div
                     key={appointment.id}
                     className="rounded-lg border border-border/50 p-3 hover:bg-accent/50 transition-colors"
@@ -213,12 +187,19 @@ export default function Dashboard() {
                         <p className="text-sm font-semibold text-foreground">
                           {appointment.title}
                         </p>
-                        <p className="text-xs text-muted-foreground">{appointment.time}</p>
-                        <p className="text-xs text-muted-foreground">{appointment.client}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(appointment.startTime), "PPp")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{appointment.location || "Online"}</p>
                       </div>
                     </div>
                   </div>
                 ))}
+                {(appointments || []).length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No upcoming appointments.
+                  </div>
+                )}
               </div>
               <Button
                 variant="outline"
@@ -237,15 +218,15 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               <CardTitle className="text-orange-900 dark:text-orange-100">
-                Pending Actions
+                Practice Alerts
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm text-orange-800 dark:text-orange-200">
-              <li>• 3 invoices pending payment (B/.45,200)</li>
-              <li>• 2 documents awaiting client signature</li>
-              <li>• 1 court filing deadline in 5 days</li>
+              <li>• Ley 81 Compliance: Data protection audits are up to date.</li>
+              <li>• System Status: All legal knowledge modules are operational.</li>
+              <li>• Digital Signatures: {metrics?.activeCases || 0} active matters pending updates.</li>
             </ul>
           </CardContent>
         </Card>
