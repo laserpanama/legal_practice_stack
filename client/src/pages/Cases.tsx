@@ -85,7 +85,7 @@ export default function Cases() {
     });
   };
 
-  const cases = casesQuery.data || [];
+  const cases = (casesQuery.data as any[]) || [];
   const filteredCases = cases.filter((caseItem) => {
     const matchesSearch =
       caseItem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -104,12 +104,18 @@ export default function Cases() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "open":
+      case "intake":
         return "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
-      case "pending":
+      case "review":
         return "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300";
+      case "active":
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+      case "pending_signature":
+        return "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300";
       case "closed":
-        return "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300";
+        return "bg-gray-50 text-gray-700 dark:bg-gray-950 dark:text-gray-300";
+      case "archived":
+        return "bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-300";
       default:
         return "bg-gray-50 text-gray-700 dark:bg-gray-950 dark:text-gray-300";
     }
@@ -272,8 +278,10 @@ export default function Cases() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
                 <option value="all">All Status</option>
-                <option value="open">Open</option>
-                <option value="pending">Pending</option>
+                <option value="intake">Intake</option>
+                <option value="review">Review</option>
+                <option value="active">Active</option>
+                <option value="pending_signature">Pending Signature</option>
                 <option value="closed">Closed</option>
                 <option value="archived">Archived</option>
               </select>
@@ -346,10 +354,10 @@ export default function Cases() {
                         <TableCell>
                           <span
                             className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(
-                              caseItem.status || "open"
+                              caseItem.status || "intake"
                             )}`}
                           >
-                            {caseItem.status || "open"}
+                            {(caseItem.status || "intake").replace("_", " ")}
                           </span>
                         </TableCell>
                         <TableCell>

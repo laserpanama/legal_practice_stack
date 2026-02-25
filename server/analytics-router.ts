@@ -14,19 +14,36 @@ export const analyticsRouter = router({
    */
   getPracticeMetrics: protectedProcedure.query(async () => {
     const db = await getDb();
-    if (!db) return { totalCases: 0, activeCases: 0, totalClients: 0, totalRevenue: 0, billableRate: 0 };
+    if (!db) return {
+      totalCases: 0,
+      activeCases: 0,
+      totalClients: 0,
+      totalRevenue: 0,
+      outstandingRevenue: 0,
+      billableRate: 0,
+      hoursThisMonth: 0
+    };
 
     try {
       const [totalCases] = await db.select({ count: sql<number>`count(*)` }).from(cases);
       const [activeCases] = await db.select({ count: sql<number>`count(*)` }).from(cases).where(eq(cases.status, "active"));
       const [totalClients] = await db.select({ count: sql<number>`count(*)` }).from(clients);
+
       const [totalRevenue] = await db.select({ sum: sql<number>`sum(amount)` }).from(invoices).where(eq(invoices.status, "paid"));
+      const [outstandingRevenue] = await db.select({ sum: sql<number>`sum(amount)` }).from(invoices).where(sql`${invoices.status} != 'paid' AND ${invoices.status} != 'cancelled'`);
 
       // Calculate billable rate (billable vs non-billable hours)
       const timeStats = await db.select({
         billable: sql<number>`sum(case when billable = 1 then hours else 0 end)`,
         total: sql<number>`sum(hours)`
       }).from(timeEntries);
+
+      // Hours this month
+      const firstDayOfMonth = new Date();
+      firstDayOfMonth.setDate(1);
+      firstDayOfMonth.setHours(0, 0, 0, 0);
+
+      const [hoursThisMonth] = await db.select({ sum: sql<number>`sum(hours)` }).from(timeEntries).where(gte(timeEntries.entryDate, firstDayOfMonth));
 
       const billableRate = timeStats[0]?.total ? (timeStats[0].billable / timeStats[0].total) * 100 : 0;
 
@@ -35,7 +52,9 @@ export const analyticsRouter = router({
         activeCases: Number(activeCases?.count || 0),
         totalClients: Number(totalClients?.count || 0),
         totalRevenue: Number(totalRevenue?.sum || 0),
+        outstandingRevenue: Number(outstandingRevenue?.sum || 0),
         billableRate: Math.round(billableRate * 10) / 10,
+        hoursThisMonth: Math.round(Number(hoursThisMonth?.sum || 0) / 60),
       };
     } catch (error) {
       console.error("Error in getPracticeMetrics:", error);

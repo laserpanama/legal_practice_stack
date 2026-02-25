@@ -5,9 +5,9 @@
  */
 
 import { getDb, createAuditLog } from "./db";
-import { eq, sql, count } from "drizzle-orm";
+import { eq, sql, count, and, desc } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
-import { cases, type Case } from "../drizzle/schema";
+import { cases, auditLogs, type Case } from "../drizzle/schema";
 
 export type CaseStatus = "intake" | "review" | "active" | "pending_signature" | "closed" | "archived";
 
@@ -192,9 +192,32 @@ export async function getCaseWorkflowHistory(caseId: number): Promise<CaseWorkfl
   if (!db) return [];
 
   try {
-    // In a real app, we'd query auditLogs.
-    // This is a simplified version returning empty for now or searching auditLogs if it was robustly typed.
-    return [];
+    const history = await db
+      .select()
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.entityType, "case"),
+          eq(auditLogs.entityId, caseId),
+          eq(auditLogs.action, "case_status_transition")
+        )
+      )
+      .orderBy(desc(auditLogs.createdAt));
+
+    return history.map((log) => {
+      try {
+        return JSON.parse(log.details || "{}") as CaseWorkflowTransition;
+      } catch (e) {
+        return {
+          fromStatus: "intake",
+          toStatus: "intake",
+          reason: "Error parsing history",
+          timestamp: log.createdAt,
+          performedBy: "System",
+          notifyClient: false,
+        } as CaseWorkflowTransition;
+      }
+    });
   } catch (error) {
     console.error("[Case Workflow] Error getting history:", error);
     return [];

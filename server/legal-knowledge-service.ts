@@ -16,7 +16,7 @@ import {
   type DocumentTemplate,
   type TemplateField,
 } from "../drizzle/legal-knowledge-schema";
-import { eq, like, inArray, and, desc } from "drizzle-orm";
+import { eq, like, inArray, and, desc, or, sql } from "drizzle-orm";
 
 /**
  * Search legal codes by keyword
@@ -30,20 +30,23 @@ export async function searchLegalCodes(
     const db = await getDb();
     if (!db) return [];
     
-    let query = db
+    const searchTerm = `%${keyword}%`;
+    const results = await db
       .select()
       .from(legalCodes)
-      .where(codeType ? and(eq(legalCodes.codeType, codeType as any)) : undefined)
+      .where(
+        and(
+          codeType ? eq(legalCodes.codeType, codeType as any) : undefined,
+          or(
+            like(legalCodes.title, searchTerm),
+            like(legalCodes.description, searchTerm),
+            like(legalCodes.fullText, searchTerm)
+          )
+        )
+      )
       .limit(limit);
 
-    // Execute query and filter by keyword
-    const results = await query;
-    return results.filter(
-      (code) =>
-        code.title.toLowerCase().includes(keyword.toLowerCase()) ||
-        code.description?.toLowerCase().includes(keyword.toLowerCase()) ||
-        code.fullText.toLowerCase().includes(keyword.toLowerCase())
-    );
+    return results;
   } catch (error) {
     console.error("Error searching legal codes:", error);
     return [];
@@ -101,22 +104,25 @@ export async function searchLegalCodeSections(
   try {
     const db = await getDb();
     if (!db) return [];
-    const sections = await db
+
+    const searchTerm = `%${keyword}%`;
+    const filtered = await db
       .select()
       .from(legalCodeSections)
+      .where(
+        or(
+          like(legalCodeSections.sectionTitle, searchTerm),
+          like(legalCodeSections.sectionText, searchTerm),
+          like(legalCodeSections.keywords, searchTerm)
+        )
+      )
       .limit(limit);
 
-    // Filter sections by keyword
-    const filtered = sections.filter(
-      (section: LegalCodeSection) =>
-        section.sectionTitle?.toLowerCase().includes(keyword.toLowerCase()) ||
-        section.sectionText.toLowerCase().includes(keyword.toLowerCase()) ||
-        section.keywords?.toLowerCase().includes(keyword.toLowerCase())
-    );
+    if (filtered.length === 0) return [];
 
     // Get associated codes
     const codeIds = Array.from(new Set(filtered.map((s: LegalCodeSection) => s.codeId)));
-    const codes = await db!
+    const codes = await db
       .select()
       .from(legalCodes)
       .where(inArray(legalCodes.id, codeIds));
@@ -166,7 +172,16 @@ export async function searchDocumentTemplates(
     const db = await getDb();
     if (!db) return [];
     
-    const conditions = [eq(documentTemplates.isActive, 1)];
+    const searchTerm = `%${keyword}%`;
+    const conditions = [
+      eq(documentTemplates.isActive, 1),
+      or(
+        like(documentTemplates.templateName, searchTerm),
+        like(documentTemplates.description, searchTerm),
+        like(documentTemplates.category, searchTerm)
+      )
+    ];
+
     if (templateType) {
       conditions.push(eq(documentTemplates.templateType, templateType as any));
     }
@@ -177,13 +192,7 @@ export async function searchDocumentTemplates(
       .where(and(...conditions))
       .limit(limit);
 
-    // Filter by keyword
-    return results.filter(
-      (template: DocumentTemplate) =>
-        template.templateName.toLowerCase().includes(keyword.toLowerCase()) ||
-        template.description?.toLowerCase().includes(keyword.toLowerCase()) ||
-        template.category?.toLowerCase().includes(keyword.toLowerCase())
-    );
+    return results;
   } catch (error) {
     console.error("Error searching document templates:", error);
     return [];
@@ -393,16 +402,20 @@ export async function getRelatedLegalCodes(
   try {
     const db = await getDb();
     if (!db) return [];
+
+    const searchTerm = `%${topic}%`;
     const codes = await db
       .select()
       .from(legalCodes)
+      .where(
+        or(
+          like(legalCodes.title, searchTerm),
+          like(legalCodes.description, searchTerm)
+        )
+      )
       .limit(limit);
 
-    return codes.filter(
-      (code: LegalCode) =>
-        code.title.toLowerCase().includes(topic.toLowerCase()) ||
-        code.description?.toLowerCase().includes(topic.toLowerCase())
-    );
+    return codes;
   } catch (error) {
     console.error("Error getting related legal codes:", error);
     return [];

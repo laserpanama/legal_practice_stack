@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -184,7 +184,27 @@ export async function getCasesByClientId(clientId: number) {
 export async function getCasesByLawyerId(lawyerId: number) {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(cases).where(eq(cases.assignedLawyerId, lawyerId));
+  return await db
+    .select({
+      id: cases.id,
+      clientId: cases.clientId,
+      assignedLawyerId: cases.assignedLawyerId,
+      caseNumber: cases.caseNumber,
+      title: cases.title,
+      description: cases.description,
+      caseType: cases.caseType,
+      status: cases.status,
+      priority: cases.priority,
+      openDate: cases.openDate,
+      closeDate: cases.closeDate,
+      budget: cases.budget,
+      createdAt: cases.createdAt,
+      updatedAt: cases.updatedAt,
+      clientName: sql<string>`concat(${clients.firstName}, ' ', ${clients.lastName})`,
+    })
+    .from(cases)
+    .leftJoin(clients, eq(cases.clientId, clients.id))
+    .where(eq(cases.assignedLawyerId, lawyerId));
 }
 
 export async function updateCase(id: number, data: Partial<InsertCase>) {
